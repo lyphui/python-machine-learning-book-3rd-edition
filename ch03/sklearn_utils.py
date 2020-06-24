@@ -4,7 +4,7 @@ import numpy as np
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import Perceptron
+from sklearn.linear_model import Perceptron,LogisticRegression
 from sklearn.metrics import accuracy_score
 from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
@@ -72,6 +72,56 @@ def test_ppn(X_train_std,X_test_std,y_train, y_test):
     plt.legend(loc='upper left')
     plt.show()
 
+class Logistic_regression():
+    def __init__(self,eta=0.0001,n_iter=1000):
+        self.max_iter=n_iter
+        self.eta=eta
+        self.w_initialized = False
+        self.shuffle = True
+        self.cost_ = []
+
+    def fit(self,x,y_gt):
+        x_1 = np.hstack((x, np.ones((x.shape[0], 1))))
+        self.w_=np.random.random(x_1.shape[-1])
+
+        for iter in range(self.max_iter):
+            hidden=self.net_input(x_1)
+            y_pred=self.activation(hidden)
+            dw_=self.eta*np.dot(x_1.T ,y_gt-y_pred)
+            print(dw_)
+            if np.sum(abs(dw_))<10e-9:
+                break
+            self.w_+=dw_
+            self.cost_.append(-(y_gt*(np.log(y_pred)+(1-y_gt)*np.log(1-y_pred))))
+
+    def partial_fit(self, X, y):
+        if not self.w_initialized:
+            self._initialize_weights(X.shape[1])
+        if y.ravel().shape[0] > 1:
+            for xi, target in zip(X, y):
+                self._update_weights(xi, target)
+        else:
+            self._update_weights(X, y)
+        return self
+
+    def predict(self,x):
+        x = np.hstack((x,np.ones((x.shape[0],1))))
+        y_pred = self.activation(self.net_input(x))
+        return np.array([1 if i > 0.5 else 0 for i in y_pred])
+
+    def net_input(self,x):
+        return np.dot(x,self.w_)#np.sum(x * self.w_, axis=1)
+
+    def activation(self, X):
+        return 1/(1+np.exp(-np.clip(X, -250, 250)))
+
+    def _initialize_weights(self, m):
+        self.w_ = np.random.random(1 + m)
+        self.w_initialized = True
+
+    def _shuffle(self, X, y):
+        r = np.random.permutation(len(y))
+        return X[r], y[r]
 
 def plot_sigmoid():
     def sigmoid(z):
@@ -91,4 +141,25 @@ def plot_sigmoid():
 
 X_train_std,X_test_std,y_train, y_test= load_iris_data()
 
-plot_sigmoid()
+
+
+weights, params = [], []
+for c in np.arange(-5, 5):
+    lr = LogisticRegression(C=10.**c, random_state=1,
+                            solver='lbfgs',
+                            multi_class='ovr')
+    lr.fit(X_train_std, y_train)
+    weights.append(lr.coef_[1])
+    params.append(10.**c)
+
+weights = np.array(weights)
+plt.plot(params, weights[:, 0],
+         label='petal length')
+plt.plot(params, weights[:, 1], linestyle='--',
+         label='petal width')
+plt.ylabel('weight coefficient')
+plt.xlabel('C')
+plt.legend(loc='upper left')
+plt.xscale('log')
+#plt.savefig('images/03_08.png', dpi=300)
+plt.show()
